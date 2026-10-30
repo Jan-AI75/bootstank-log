@@ -1,0 +1,801 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<meta name="claude:viewport-fit-sides" content="cover">
+<title>Bootstank-Log</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  /* Layout: single column, max 720px (Tabellen passen am Rechner ohne Seitwärtsscrollen) — Design übernommen aus „Bodensee aktuell": dunkel, aufgeräumt, umschaltbare Paletten */
+  :root {
+    /* Nachtsee (Voreinstellung) */
+    --bg:#0b1a20; --surface:#11252d; --fg:#e3eef1; --muted:#8aa5ae; --line:#24404a;
+    --lake:#5fb6d3; --lake-soft:#173a47; --mean:#e0a957; --band:#3a3222; --up:#6cc890; --down:#ee8a72;
+    --warm:#f0916c; --cool:#7fb2ec; --statusbar:var(--bg);
+    --display:"Bricolage Grotesque","Segoe UI",system-ui,sans-serif;
+    --body:"IBM Plex Sans",system-ui,-apple-system,sans-serif;
+    --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+    color-scheme:dark;
+  }
+  :root[data-palette="graphit"]{
+    --bg:#111316; --surface:#1a1d21; --fg:#e9ebee; --muted:#959ca6; --line:#2a2e34;
+    --lake:#6aa8ff; --lake-soft:#1d2a3d; --mean:#d6ad62; --band:#3a3326; --up:#5fd08a; --down:#ff8a73;
+    --warm:#ff9670; --cool:#8ab8ff; color-scheme:dark}
+  :root[data-palette="marine"]{
+    --bg:#0a1426; --surface:#101d35; --fg:#e6edf7; --muted:#8ea3c2; --line:#1f3152;
+    --lake:#58c4f2; --lake-soft:#143350; --mean:#f0c35a; --band:#3b3420; --up:#5fd6a0; --down:#ff8a6b;
+    --warm:#ff9a74; --cool:#8cc8ff; color-scheme:dark}
+  :root[data-palette="schwarz"]{
+    --bg:#000000; --surface:#0e0f11; --fg:#f3f4f5; --muted:#8b9097; --line:#23262a;
+    --lake:#4aa8f0; --lake-soft:#0f2236; --mean:#e2b04e; --band:#322a17; --up:#4fd387; --down:#ff7b63;
+    --warm:#ff8a66; --cool:#7fb6ff; color-scheme:dark}
+  :root[data-palette="hell"]{
+    --bg:#eef3f4; --surface:#ffffff; --fg:#0f2a33; --muted:#5a7480; --line:#cfdde1;
+    --lake:#1f6f8b; --lake-soft:#cfe6ee; --mean:#b07a2a; --band:#ead9bd; --up:#2c7a4b; --down:#b4472f;
+    --warm:#c2552f; --cool:#2f6fb4; --statusbar:#0f2a33; color-scheme:light}
+  :root[data-palette="nacht"]{
+    /* Rotlicht wie im Boot-Cockpit (Nachtsicht schonen) */
+    --bg:#000000; --surface:#0A0404; --fg:#FF6A5C; --muted:#C2513F; --line:#2A0F0C;
+    --lake:#E8604F; --lake-soft:#2A0806; --mean:#9C4034; --band:#1E0605; --up:#FF6A5C; --down:#D5584B;
+    --warm:#FF6A5C; --cool:#B44A3E; --statusbar:#000000; color-scheme:dark}
+
+  * { box-sizing: border-box; }
+  html, body { margin:0; }
+  body{ background:var(--bg); color:var(--fg); font-family:var(--body); font-size:15px; line-height:1.45; }
+  body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);background:var(--statusbar);z-index:10}
+  .wrap{max-width:720px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:16px 40px;display:grid;gap:16px}
+
+  /* Header */
+  .top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;position:relative}
+  .eyebrow{font-family:var(--mono);font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 0 3px}
+  h1{font-family:var(--display);font-weight:700;font-size:clamp(1.3rem,6vw,1.7rem);margin:0;letter-spacing:-.01em;line-height:1.05}
+  .intro{color:var(--muted);font-size:.86rem;margin:6px 0 0;max-width:52ch}
+
+  /* Palette switcher (übernommen) */
+  .pal-btn{width:34px;height:34px;border-radius:50%;border:1px solid var(--line);background:var(--surface);display:grid;place-items:center;cursor:pointer;padding:0;flex:none}
+  .pal-dot{width:16px;height:16px;border-radius:50%;background:conic-gradient(var(--lake) 0 50%,var(--mean) 50% 75%,var(--up) 75%);}
+  .pal-menu{position:absolute;right:0;top:calc(100% + 8px);z-index:20;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:6px;min-width:210px;box-shadow:0 10px 30px rgba(0,0,0,.35);display:grid;gap:2px}
+  .pal-title{font-family:var(--mono);font-size:.68rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:6px 10px 4px}
+  .pal-item{display:flex;align-items:center;gap:10px;width:100%;border:0;background:transparent;color:var(--fg);font:500 .9rem var(--body);padding:8px 10px;border-radius:9px;cursor:pointer;text-align:left}
+  .pal-item:hover{background:color-mix(in srgb,var(--fg) 6%,transparent)}
+  .pal-item[aria-checked="true"]{background:color-mix(in srgb,var(--lake) 16%,transparent)}
+  .pal-item .sw{display:flex;border-radius:5px;overflow:hidden;border:1px solid var(--line);flex:none}
+  .pal-item .sw i{width:12px;height:18px}
+  .pal-item .chk{margin-left:auto;color:var(--lake);font-size:.9rem;visibility:hidden}
+  .pal-item[aria-checked="true"] .chk{visibility:visible}
+
+  /* Sync-Hinweis & Übernahme lokaler Daten */
+  .sync{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:.7rem;color:var(--muted);margin-top:8px}
+  .sync .sdot{width:7px;height:7px;border-radius:50%;background:var(--muted);flex:none}
+  .sync.ok .sdot{background:var(--up)} .sync.warn .sdot{background:var(--mean)} .sync.err .sdot{background:var(--down)}
+  .migrate{background:color-mix(in srgb,var(--lake) 12%,var(--surface));border:1px solid color-mix(in srgb,var(--lake) 45%,var(--line));border-radius:14px;padding:14px 16px;display:grid;gap:10px}
+  .migrate p{margin:0;font-size:.86rem}
+  .migrate .actions{margin-top:0}
+
+  /* Section labels */
+  .slabel{font-family:var(--mono);font-size:.68rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:4px 4px -4px}
+  /* Abschnitt mit eigener Überschrift: gleicher Abstand wie im Seitenraster, sonst rutscht die Überschrift in die Tabelle */
+  #partialSection{display:grid;gap:16px}
+
+  /* Tiles */
+  .tiles{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+  .tile{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;min-width:0}
+  .tile .k{font-family:var(--mono);font-size:.64rem;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin:0}
+  .tile .v{font-family:var(--display);font-weight:700;font-size:1.9rem;line-height:1;margin:9px 0 2px;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+  .tile .u{font-size:.76rem;color:var(--muted);min-height:1.1em}
+  .tile .v .unit{font-family:var(--body);font-size:.85rem;font-weight:500;letter-spacing:0;color:var(--muted)}
+  .tile.accent{border-color:color-mix(in srgb,var(--lake) 45%,var(--line))}
+  .tile.accent .v{color:var(--lake)}
+
+  /* Card base */
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px}
+  .card h2{font-family:var(--display);font-weight:500;font-size:1.05rem;margin:0 0 12px}
+
+  /* Kosten */
+  .cost-tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px}
+  .cost-tiles .tile{background:var(--bg);padding:12px}
+  .cost-tiles .tile .v{font-size:1.35rem;margin-top:8px}
+  @media (max-width:400px){.cost-tiles .tile .v{font-size:1.15rem}}
+
+  /* Tank check */
+  .hours-box{background:color-mix(in srgb,var(--mean) 7%,var(--bg));border:1px solid color-mix(in srgb,var(--mean) 35%,var(--line));border-radius:12px;padding:12px;display:grid;gap:6px}
+  .hours-box label{color:var(--mean);margin:0}
+  .hours-box input{font-size:1.05rem;font-weight:500;font-variant-numeric:tabular-nums;background:var(--bg)}
+  .hours-box .fieldnote{margin:0}
+  .tank-row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:12px}
+  .tank-row label{margin:0}
+  .tank-row input{width:110px;text-align:right}
+  .settings{padding:12px 16px}
+  .settings summary{cursor:pointer;font-family:var(--mono);font-size:.7rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+  .settings summary:focus-visible{outline:2px solid var(--lake);outline-offset:2px;border-radius:4px}
+  .check-top{display:flex;gap:12px;flex-wrap:wrap}
+  .check-top > div{flex:1 1 140px}
+  .gauge-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}
+  @media (max-width:480px){.gauge-row{grid-template-columns:1fr}}
+  .scenario{border:1px solid var(--line);border-radius:12px;padding:14px;background:var(--bg)}
+  .scenario h4{margin:0 0 3px;font-family:var(--mono);font-size:.64rem;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);font-weight:500}
+  .scenario .rate{font-family:var(--mono);font-size:.72rem;color:var(--muted);margin:0 0 11px}
+  .scenario .big{font-family:var(--display);font-weight:700;font-size:2.1rem;line-height:1;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+  .scenario .big .unit{font-size:.82rem;color:var(--muted);font-family:var(--body);font-weight:400}
+  .scenario .line2{font-family:var(--mono);font-size:.76rem;color:var(--muted);margin-top:8px;font-variant-numeric:tabular-nums}
+  .bar{height:9px;border-radius:6px;background:color-mix(in srgb,var(--fg) 8%,transparent);overflow:hidden;margin:12px 0 0}
+  .bar > i{display:block;height:100%;border-radius:6px}
+  .risk{display:inline-flex;align-items:center;gap:7px;margin-top:11px;font-size:.78rem;font-weight:600;padding:4px 10px;border-radius:999px}
+  .risk .rdot{width:8px;height:8px;border-radius:50%;flex:none}
+  .risk.green{background:color-mix(in srgb,var(--up) 16%,transparent);color:var(--up)}
+  .risk.amber{background:color-mix(in srgb,var(--mean) 18%,transparent);color:var(--mean)}
+  .risk.red{background:color-mix(in srgb,var(--down) 16%,transparent);color:var(--down)}
+  .green .rdot{background:var(--up)} .amber .rdot{background:var(--mean)} .red .rdot{background:var(--down)}
+  .check-note{font-family:var(--mono);margin-top:14px;font-size:.72rem;color:var(--muted);line-height:1.5}
+  .check-empty{color:var(--muted);font-size:.84rem;padding:6px 0}
+
+  /* Chart */
+  .chart-wrap{width:100%;overflow-x:auto}
+  svg{display:block;width:100%;height:auto}
+  svg text{font-family:var(--mono)}
+  .legend{display:flex;flex-wrap:wrap;gap:14px;margin-top:10px;font-family:var(--mono);font-size:.72rem;color:var(--muted)}
+  .legend span{display:inline-flex;align-items:center;gap:6px}
+  .legend i{display:inline-block;width:14px;height:3px;border-radius:2px}
+  .legend .dot{width:8px;height:8px;border-radius:50%}
+  .legend .sq{width:10px;height:10px;border-radius:2px;opacity:.85}
+
+  /* Tables */
+  .card.flush{padding:0;overflow:hidden}
+  .card.flush h2{padding:16px 16px 10px;margin:0}
+  .table-wrap{overflow-x:auto}
+  /* Beide Tabellen teilen dieselben Spalten und Breiten, damit sie untereinander fluchten */
+  table{border-collapse:collapse;width:100%;min-width:640px;font-size:.82rem;table-layout:fixed}
+  col.c-date{width:120px} col.c-num{width:58px} col.c-lit{width:62px} col.c-price{width:100px} col.c-act{width:66px}
+  table th,table td{padding-left:8px;padding-right:8px}
+  td{overflow:hidden;text-overflow:ellipsis}
+  td.hint{text-align:left;color:var(--muted)}
+  tr.sub td{color:var(--muted);font-size:.76rem;border-top-style:dashed}
+  tr.sub td:first-child{padding-left:20px}
+  th,td{text-align:right;padding:9px 12px;border-top:1px solid var(--line);font-variant-numeric:tabular-nums;white-space:nowrap;font-family:var(--mono)}
+  th:first-child,td:first-child{text-align:left}
+  thead th{font-size:.62rem;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);font-weight:500;border-top:0}
+  tr.baseline td{color:var(--muted)}
+  tr.open td{background:var(--lake-soft)}
+  td .pill{font-family:var(--mono);font-size:.6rem;letter-spacing:.04em;padding:2px 6px;border-radius:999px;background:var(--band);color:var(--mean)}
+  .del{background:none;border:none;color:var(--muted);cursor:pointer;font-size:1rem;line-height:1;padding:2px 6px;border-radius:6px}
+  .del:hover{color:var(--down);background:color-mix(in srgb,var(--down) 14%,transparent)}
+  td .receipt{width:30px;height:30px;border-radius:5px;object-fit:cover;border:1px solid var(--line);cursor:pointer;vertical-align:middle}
+
+  /* Form */
+  label{display:block;font-family:var(--mono);font-size:.64rem;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin-bottom:5px}
+  input,select{width:100%;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:.92rem;font-family:var(--body)}
+  input:focus,select:focus{outline:2px solid var(--lake);outline-offset:1px;border-color:var(--lake)}
+  button:focus-visible{outline:2px solid var(--lake);outline-offset:2px}
+  .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:13px}
+  @media (max-width:480px){.grid{grid-template-columns:1fr}}
+  .fieldnote{font-family:var(--mono);font-size:.68rem;color:var(--muted);margin-top:5px}
+  .toggle-row{display:flex;align-items:center;gap:10px;grid-column:1/-1}
+  .toggle-row input{width:auto} .toggle-row label{margin:0;font-family:var(--body);font-size:.84rem;text-transform:none;letter-spacing:0;color:var(--fg)}
+  .photo-field,.rate-field{grid-column:1/-1}
+  td .orig{display:block;font-size:.66rem;color:var(--muted);overflow:hidden;text-overflow:ellipsis}
+  .photo-drop{border:1.5px dashed var(--line);border-radius:10px;padding:13px;display:flex;align-items:center;gap:13px;cursor:pointer;background:var(--bg)}
+  .photo-drop:hover{border-color:var(--lake)}
+  .photo-drop .ico{font-size:1.3rem} .photo-drop .txt{font-size:.82rem;color:var(--muted)}
+  .photo-thumb{width:50px;height:50px;border-radius:8px;object-fit:cover;border:1px solid var(--line)}
+  .calc-preview{grid-column:1/-1;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:11px 13px;font-size:.8rem;color:var(--muted);font-family:var(--mono);min-height:20px}
+  .calc-preview b{color:var(--fg);font-weight:500}
+  .actions{display:flex;gap:10px;align-items:center;margin-top:16px;flex-wrap:wrap}
+  button.primary{background:var(--lake);color:var(--bg);border:none;border-radius:10px;padding:11px 20px;font-size:.9rem;font-weight:600;cursor:pointer;font-family:var(--body)}
+  button.primary:hover{filter:brightness(1.08)}
+  button.primary:disabled{opacity:.6;cursor:default}
+  button.ghost{background:var(--surface);border:1px solid var(--line);color:var(--muted);border-radius:999px;padding:9px 15px;font-size:.78rem;cursor:pointer;font-family:var(--body)}
+  .note{grid-column:1/-1;font-family:var(--mono);margin-top:4px;font-size:.72rem;color:var(--muted);background:color-mix(in srgb,var(--mean) 12%,var(--bg));border-radius:10px;padding:11px 13px;line-height:1.5}
+
+  .lightbox{position:fixed;inset:0;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center;z-index:50;padding:24px}
+  .lightbox img{max-width:100%;max-height:100%;border-radius:10px}
+  footer{font-family:var(--mono);font-size:.7rem;color:var(--muted);text-align:center;margin-top:8px}
+</style>
+
+<div class="wrap">
+  <div class="top">
+    <div>
+      <p class="eyebrow">Bodensee · Benzinverbrauch</p>
+      <h1>Bootstank-Log</h1>
+    </div>
+    <button class="pal-btn" id="palBtn" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="palMenu" aria-label="Farben wählen"><span class="pal-dot"></span></button>
+    <div class="pal-menu" id="palMenu" role="menu" hidden></div>
+  </div>
+  <div>
+    <p class="intro">Verbrauch nach der Voll-zu-Voll-Methode auf Basis der Motorbetriebsstunden. Teilbetankungen werden separat geführt und erst dem nächsten Volltank-Intervall zugerechnet.</p>
+    <div class="sync" id="sync"><span class="sdot"></span><span id="syncTxt">Verbinde mit Datenspeicher …</span></div>
+  </div>
+
+  <div class="migrate" id="migrate" hidden>
+    <p id="migrateTxt"></p>
+    <div class="actions">
+      <button type="button" class="primary" id="migrateBtn">Übernehmen</button>
+      <button type="button" class="ghost" id="migrateSkip">Ignorieren</button>
+    </div>
+  </div>
+
+  <p class="slabel">Tank-Check · Prognose während des Tankens</p>
+  <div class="card">
+    <div class="hours-box">
+      <label for="checkHours">Aktuelle Motorstunden · hier immer eintragen</label>
+      <input type="number" id="checkHours" step="0.1" inputmode="decimal" placeholder="z. B. 564,0">
+      <p class="fieldnote" id="hoursNote">Stand vom Betriebsstundenzähler ablesen. Daraus berechnet die App Restmenge und Reichweite.</p>
+    </div>
+    <div id="checkResult"></div>
+  </div>
+
+  <div class="tiles" id="tiles"></div>
+
+  <p class="slabel">Kosten · alles in Euro</p>
+  <div class="card">
+    <div class="cost-tiles" id="costTiles"></div>
+    <p class="check-note" id="costNote"></p>
+  </div>
+
+  <p class="slabel">Verlauf · Verbrauch je Volltank-Periode</p>
+  <div class="card">
+    <div class="chart-wrap"><div id="chart"></div></div>
+    <div class="legend">
+      <span><span class="sq" style="background:var(--lake)"></span> L/h je Periode · Breite = gefahrene Stunden</span>
+      <span><i style="background:var(--mean)"></i> Ø gesamt bis zur Periode</span>
+    </div>
+  </div>
+
+  <p class="slabel">Volltank-Perioden · P = Periode von Volltank zu Volltank</p>
+  <div class="card flush">
+    <div class="table-wrap">
+      <table id="fullTable">
+        <colgroup><col class="c-date"><col class="c-num"><col class="c-num"><col class="c-lit"><col class="c-num"><col class="c-num"><col class="c-price"><col class="c-num"><col class="c-act"></colgroup>
+        <thead><tr><th>Datum · Ort</th><th>Stand h</th><th>Δh</th><th>Liter</th><th>L/h</th><th>Ø L/h</th><th>Preis</th><th>€/L</th><th></th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div id="partialSection">
+    <p class="slabel" id="partialLabel">Teilbetankungen · offene Periode</p>
+    <div class="card flush">
+      <div class="table-wrap">
+        <table id="partialTable">
+          <colgroup><col class="c-date"><col class="c-num"><col class="c-num"><col class="c-lit"><col class="c-num"><col class="c-num"><col class="c-price"><col class="c-num"><col class="c-act"></colgroup>
+          <thead><tr><th>Datum · Ort</th><th>Stand h</th><th>Δh</th><th>Liter</th><th>L/h</th><th>Ø L/h</th><th>Preis</th><th>€/L</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <p class="slabel">Neue Tankrechnung erfassen</p>
+  <form class="card" id="entryForm">
+    <div class="grid">
+      <div><label for="date">Datum</label><input type="date" id="date" required></div>
+      <div><label for="hours">Betriebsstunden</label><input type="number" id="hours" step="0.1" inputmode="decimal" placeholder="z. B. 562,4" required></div>
+      <div><label for="liters">Getankte Liter</label><input type="number" id="liters" step="0.01" inputmode="decimal" placeholder="z. B. 72,30" required></div>
+      <div><label for="price">Preis (gesamt)</label><input type="number" id="price" step="0.01" inputmode="decimal" placeholder="z. B. 152.40"></div>
+      <div><label for="currency">Bezahlt in</label><select id="currency"><option value="EUR">EUR</option><option value="CHF">CHF (Schweiz)</option></select></div>
+      <div><label for="place">Ort / Tankstelle</label><input type="text" id="place" placeholder="z. B. Jet Lindau"></div>
+
+      <div class="rate-field" id="rateField" hidden>
+        <label for="rate">Kurs am Tanktag: 1 EUR in CHF</label>
+        <input type="number" id="rate" step="0.0001" inputmode="decimal" placeholder="z. B. 0.9350">
+        <p class="fieldnote" id="rateNote">Vorbelegt mit dem zuletzt verwendeten Kurs. Bei Bedarf an den Tageskurs anpassen.</p>
+      </div>
+
+      <div class="toggle-row">
+        <input type="checkbox" id="isFull" checked>
+        <label for="isFull">Volltank (randvoll) — abgewählt = Teilbetankung</label>
+      </div>
+
+      <div class="photo-field">
+        <label>Beleg-Foto (optional)</label>
+        <div class="photo-drop" id="photoDrop">
+          <span class="ico" id="photoIco">📷</span>
+          <span class="txt" id="photoTxt">Foto aufnehmen oder aus Galerie wählen</span>
+          <img id="photoThumb" class="photo-thumb" hidden alt="Beleg-Vorschau">
+        </div>
+        <input type="file" id="photoInput" accept="image/*" hidden>
+        <p class="fieldnote">Wird verkleinert gespeichert und beim Eintrag als Vorschau abgelegt.</p>
+      </div>
+
+      <div class="calc-preview" id="preview">Werte eingeben für Vorschau …</div>
+
+      <div class="note"><b>Teilbetankung?</b> Wenn der Tank nicht randvoll ist, Haken entfernen. Die Menge wird gespeichert und erst beim nächsten Volltank dem Intervall zugerechnet — so bleibt der L/h-Wert korrekt.</div>
+    </div>
+
+    <div class="actions">
+      <button type="submit" class="primary" id="submitBtn">Eintrag hinzufügen</button>
+      <button type="button" class="ghost" id="resetBtn">Felder leeren</button>
+    </div>
+  </form>
+
+  <details class="settings card">
+    <summary>Einstellungen · Boot</summary>
+    <div class="tank-row">
+      <label for="tankSize">Tankvolumen (L)</label>
+      <input type="number" id="tankSize" step="1" inputmode="decimal" value="270">
+    </div>
+    <p class="fieldnote">Wird gespeichert und gilt auf allen Geräten. Nur bei einem anderen Boot oder Tank ändern.</p>
+  </details>
+
+  <footer>
+    <span id="footTxt">Daten werden über claude.ai gespeichert.</span>
+  </footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/fecha/4.2.3/fecha.min.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  // ---- Palette switcher (übernommen aus „Bodensee aktuell") ----
+  const PALETTES = [
+    { k: "nachtsee", name: "Nachtsee", c: ["#0b1a20", "#5fb6d3", "#e0a957", "#6cc890"] },
+    { k: "graphit",  name: "Graphit",  c: ["#111316", "#6aa8ff", "#d6ad62", "#5fd08a"] },
+    { k: "marine",   name: "Marine",   c: ["#0a1426", "#58c4f2", "#f0c35a", "#5fd6a0"] },
+    { k: "schwarz",  name: "Schwarz",  c: ["#000000", "#4aa8f0", "#e2b04e", "#4fd387"] },
+    { k: "hell",     name: "Hell",     c: ["#eef3f4", "#1f6f8b", "#b07a2a", "#2c7a4b"] },
+    { k: "nacht",    name: "Nachtsicht (Rot)", c: ["#000000", "#E8604F", "#9C4034", "#FF6A5C"] }
+  ];
+  const PSTORE = "tanklog_palette";
+  let palette = "nachtsee";
+  try { palette = localStorage.getItem(PSTORE) || "nachtsee"; } catch (e) {}
+
+  const palBtn = document.getElementById("palBtn");
+  const palMenu = document.getElementById("palMenu");
+  palMenu.innerHTML = '<p class="pal-title">Farbschema</p>' + PALETTES.map(p =>
+    `<button class="pal-item" role="menuitemradio" data-k="${p.k}" aria-checked="false">
+      <span class="sw">${p.c.map(col => `<i style="background:${col}"></i>`).join("")}</span>
+      ${p.name}<span class="chk">✓</span>
+    </button>`).join("");
+
+  function applyPalette() {
+    if (palette === "nachtsee") document.documentElement.removeAttribute("data-palette");
+    else document.documentElement.setAttribute("data-palette", palette);
+    palMenu.querySelectorAll(".pal-item").forEach(b => b.setAttribute("aria-checked", b.dataset.k === palette));
+    try { localStorage.setItem(PSTORE, palette); } catch (e) {}
+  }
+  palBtn.onclick = () => {
+    const open = !palMenu.hidden;
+    palMenu.hidden = open;
+    palBtn.setAttribute("aria-expanded", String(!open));
+  };
+  palMenu.querySelectorAll(".pal-item").forEach(b => {
+    b.onclick = () => { palette = b.dataset.k; applyPalette(); palMenu.hidden = true; palBtn.setAttribute("aria-expanded", "false"); render(); };
+  });
+  document.addEventListener("click", e => { if (!palMenu.contains(e.target) && e.target !== palBtn && !palBtn.contains(e.target)) { palMenu.hidden = true; palBtn.setAttribute("aria-expanded", "false"); } });
+  applyPalette();
+
+  // ---- Speicher: gemeinsamer Datenspeicher (db), Rückfall auf diesen Browser ----
+  // db-Layout: entries/<id> = eine Tankrechnung, settings/main = Startstand, Tankvolumen, Kurs, Anzeigewährung
+  const LEGACY_KEY = "tanklog_v1";            // alter, rein lokaler Speicher
+  const LOCAL_SETTINGS = "tanklog_settings";
+  const MIGRATED_KEY = "tanklog_migrated";
+  const DEFAULTS = { baselineHours: null, tankSize: 270, eurChf: 0.94, dispCur: "CHF" };
+
+  let mode = "connecting";                    // "connecting" | "db" | "local"
+  let db = null, dbReady = false;
+  let state = { entries: [] };
+  let settings = { ...DEFAULTS };
+
+  function readLegacy() { try { const r = localStorage.getItem(LEGACY_KEY); return r ? JSON.parse(r) : null; } catch (e) { return null; } }
+  function saveLocal() { try { localStorage.setItem(LEGACY_KEY, JSON.stringify({ baseline: { hours: settings.baselineHours }, entries: state.entries })); localStorage.setItem(LOCAL_SETTINGS, JSON.stringify(settings)); } catch (e) {} }
+
+  function setSync(cls, txt) {
+    const el = document.getElementById("sync");
+    el.className = "sync " + cls;
+    document.getElementById("syncTxt").textContent = txt;
+  }
+  function errText(e) {
+    const code = e && e.code;
+    if (code === "invalid_argument") return "Speichern abgelehnt. Nur der Besitzer und Bearbeiter dürfen Einträge ändern.";
+    if (code === "quota_exceeded") return "Speicher voll. Ältere Belegfotos löschen und erneut versuchen.";
+    if (code === "revoked" || code === "not_granted") return "Kein Zugriff mehr auf den Datenspeicher. Seite neu laden.";
+    return "Speichern fehlgeschlagen. Bitte erneut versuchen.";
+  }
+  function showMsg(txt) { document.getElementById("preview").textContent = txt; }
+
+  function startLocal() {
+    mode = "local";
+    const leg = readLegacy();
+    let ls = null; try { ls = JSON.parse(localStorage.getItem(LOCAL_SETTINGS) || "null"); } catch (e) {}
+    let tank = null; try { tank = parseFloat(localStorage.getItem("tanklog_tank")); } catch (e) {}
+    settings = { ...DEFAULTS, ...(ls || {}) };
+    if (settings.baselineHours == null && leg && leg.baseline) settings.baselineHours = leg.baseline.hours;
+    if (!ls && tank) settings.tankSize = tank;
+    state.entries = leg && leg.entries ? leg.entries : [];
+    document.getElementById("footTxt").textContent = "Nur in diesem Browser gespeichert. Bei claude.ai angemeldet öffnen, um auf allen Geräten dieselben Daten zu sehen.";
+    setSync("warn", "Nur lokal – keine Synchronisierung");
+    syncInputs(); render();
+  }
+
+  async function startDb() {
+    let ns = null;
+    try { ns = window.claude && window.claude.use ? await window.claude.use("db") : null; } catch (e) { ns = null; }
+    if (!ns) { startLocal(); return; }
+    db = ns; mode = "db";
+    document.getElementById("footTxt").textContent = "Daten werden über claude.ai gespeichert und sind auf allen deinen Geräten gleich.";
+    db.collection("entries").onSnapshot(snap => {
+      state.entries = snap.docs.map(d => ({ ...d.data(), id: d.id }));
+      if (!snap.metadata.fromCache) dbReady = true;
+      setSync(snap.metadata.hasPendingWrites ? "warn" : "ok", snap.metadata.hasPendingWrites ? "Speichere …" : "Synchronisiert");
+      render();
+    }, e => setSync("err", "Synchronisierung unterbrochen – Seite neu laden."));
+    db.doc("settings/main").onSnapshot(snap => {
+      settings = { ...DEFAULTS, ...(snap.exists ? snap.data() : {}) };
+      syncInputs(); render();
+    }, e => setSync("err", "Synchronisierung unterbrochen – Seite neu laden."));
+  }
+
+  async function putEntry(e) {
+    if (mode === "db") { await db.collection("entries").doc(e.id).set(e); return; }
+    state.entries = state.entries.filter(x => x.id !== e.id).concat([e]); saveLocal(); render();
+  }
+  async function removeEntry(id) {
+    if (mode === "db") { await db.doc("entries/" + id).delete(); return; }
+    state.entries = state.entries.filter(e => e.id !== id); saveLocal(); render();
+  }
+  let settingsTimer = null, settingsChain = Promise.resolve();
+  function saveSettings(patch, immediate) {
+    settings = { ...settings, ...patch };
+    if (mode === "local") { saveLocal(); return settingsChain; }
+    if (mode !== "db") return settingsChain;
+    clearTimeout(settingsTimer);
+    const write = () => { const body = { ...settings }; settingsChain = settingsChain.then(() => db.doc("settings/main").set(body)).catch(e => showMsg(errText(e))); return settingsChain; };
+    if (immediate) return write();
+    settingsTimer = setTimeout(write, 700);
+    return settingsChain;
+  }
+
+  const fmt = (n, d = 2) => n == null || isNaN(n) ? "–" : n.toLocaleString("de-DE", { minimumFractionDigits: d, maximumFractionDigits: d });
+  const fmtDate = (s) => { try { return fecha.format(fecha.parse(s, "YYYY-MM-DD"), "DD.MM.YY"); } catch (e) { return s || "–"; } };
+  const cssVar = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim() || "#888";
+  const esc = (s) => String(s == null ? "" : s).replace(/[&<>"]/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch]));
+
+  // ---- Core computation (Voll-zu-Voll; Teiltanks werden dem nächsten Volltank zugerechnet) ----
+  function compute() {
+    const sorted = [...state.entries].sort((a, b) => {
+      const d = (a.date || "").localeCompare(b.date || "");
+      return d !== 0 ? d : (a.full === b.full ? 0 : (a.full ? 1 : -1));
+    });
+    const periods = [];
+    let prevHours = settings.baselineHours, carryL = 0, pendingPartials = [], cumL = 0, cumH = 0;
+    sorted.forEach(e => {
+      if (!e.full) { carryL += e.liters || 0; pendingPartials.push(e); return; }
+      const dh = (e.hours != null && prevHours != null) ? (e.hours - prevHours) : null;
+      const litersTotal = (e.liters || 0) + carryL;
+      const lph = (dh && dh > 0) ? litersTotal / dh : null;
+      if (lph != null) { cumL += litersTotal; cumH += dh; }
+      periods.push({ ref: e, date: e.date, hours: e.hours, dh, liters: litersTotal, carried: carryL, lph,
+        cumAvg: cumH > 0 ? cumL / cumH : null, price: e.price, cur: e.cur,
+        pricePerL: (e.price && e.liters) ? e.price / e.liters : null, partials: pendingPartials.slice() });
+      prevHours = e.hours; carryL = 0; pendingPartials = [];
+    });
+    const openPartials = pendingPartials.slice();
+    const openHours = openPartials.length ? Math.max(...openPartials.map(p => p.hours || 0)) : null;
+    const rates = periods.filter(p => p.lph != null).map(p => p.lph);
+    return { periods, openPartials, openCarryL: carryL, lastFullHours: prevHours, openHours: openHours || null,
+      cumAvg: cumH > 0 ? cumL / cumH : null, maxRate: rates.length ? Math.max(...rates) : null, cumL, cumH };
+  }
+
+  // ---- Kosten: angezeigt wird immer in Euro. CHF-Belege tragen den Kurs vom Tanktag (1 EUR = rate CHF) ----
+  const rateOf = e => e.rate > 0 ? e.rate : (settings.eurChf > 0 ? settings.eurChf : DEFAULTS.eurChf);
+  const eurOf = e => (e.price == null || isNaN(e.price)) ? null : (e.cur === "CHF" ? e.price / rateOf(e) : e.price);
+  const placeLine = e => e.place ? `<span class="orig" title="${esc(e.place)}">${esc(e.place)}</span>` : "";
+  function priceCell(e, liters) {
+    const eur = eurOf(e);
+    if (eur == null) return { total: "–", perL: "–" };
+    const orig = e.cur === "CHF" ? `<span class="orig">${fmt(e.price, 2)} CHF · Kurs ${fmt(rateOf(e), 4)}</span>` : "";
+    return { total: fmt(eur, 2) + " €" + orig, perL: liters ? fmt(eur / liters, 2) : "–" };
+  }
+
+  function computeCosts(c) {
+    let totalEUR = 0, chfPaid = 0, chfCount = 0, pricedL = 0, noPrice = 0;
+    state.entries.forEach(e => {
+      const eur = eurOf(e);
+      if (eur == null) { noPrice++; return; }
+      if (e.cur === "CHF") { chfPaid += e.price; chfCount++; }
+      totalEUR += eur;
+      pricedL += e.liters || 0;
+    });
+    const perL = pricedL > 0 ? totalEUR / pricedL : null;
+    const perH = (perL != null && c.cumAvg != null) ? perL * c.cumAvg : null;
+    return { totalEUR, chfPaid, chfCount, pricedL, perL, perH, noPrice };
+  }
+
+  function renderCosts(c) {
+    const k = computeCosts(c);
+    const tiles = [
+      { k: "Gesamt", v: fmt(k.totalEUR, 2), unit: "€", u: "für " + fmt(k.pricedL, 1) + " L" },
+      { k: "Ø pro Liter", v: fmt(k.perL, 2), unit: "€/L", u: "über alle Belege" },
+      { k: "Pro Motorstunde", v: fmt(k.perH, 2), unit: "€/h", u: "bei Ø-Verbrauch" }
+    ];
+    document.getElementById("costTiles").innerHTML = tiles.map(t =>
+      `<div class="tile"><p class="k">${t.k}</p><div class="v">${t.v}<span class="unit"> ${t.unit}</span></div><div class="u">${t.u}</div></div>`).join("");
+    let note = k.pricedL ? "" : "Noch keine Preise erfasst. ";
+    if (k.chfCount) note += `${k.chfCount === 1 ? "1 Tankung" : k.chfCount + " Tankungen"} in der Schweiz (${fmt(k.chfPaid, 2)} CHF), jeweils zum Kurs vom Tanktag in Euro umgerechnet. `;
+    if (k.noPrice) note += k.noPrice + (k.noPrice === 1 ? " Eintrag ohne Preis bleibt" : " Einträge ohne Preis bleiben") + " unberücksichtigt.";
+    document.getElementById("costNote").textContent = note.trim();
+  }
+
+  function renderTiles(c) {
+    const last = c.periods[c.periods.length - 1];
+    // Stand aus dem Tank-Check bevorzugen, sonst letzter bekannter Stand einer Teilbetankung
+    const checkH = parseFloat((F("checkHours").value || "").replace(",", "."));
+    const nowH = (c.lastFullHours != null && checkH >= c.lastFullHours) ? checkH : c.openHours;
+    const openDelta = (nowH && c.lastFullHours != null) ? (nowH - c.lastFullHours) : null;
+    const tank = settings.tankSize > 0 ? settings.tankSize : DEFAULTS.tankSize;
+    const estOpen = (openDelta != null && c.cumAvg) ? Math.min(tank, Math.max(0, openDelta * c.cumAvg - c.openCarryL)) : null;
+    const tiles = [
+      { k: "Ø Verbrauch gesamt", v: fmt(c.cumAvg, 1), unit: "L/h", u: "über alle Perioden", accent: true },
+      { k: "Letzte Periode", v: last ? fmt(last.lph, 1) : "–", unit: "L/h", u: last ? "P" + c.periods.length + " · " + fmtDate(last.date) : "" },
+      { k: "Vollbetankungen", v: String(c.periods.length), unit: c.openPartials.length ? "+ " + c.openPartials.length + (c.openPartials.length === 1 ? " Teilbetankung" : " Teilbetankungen") : "", u: settings.baselineHours != null ? "seit Start bei " + fmt(settings.baselineHours, 1) + " h" : "" },
+      { k: "Seit letzter Vollbetankung", v: openDelta != null ? fmt(openDelta, 1) : "–", unit: "h", u: estOpen != null ? "~" + fmt(estOpen, 1) + " L bis randvoll" : "" }
+    ];
+    document.getElementById("tiles").innerHTML = tiles.map(t =>
+      `<div class="tile${t.accent ? ' accent' : ''}"><p class="k">${t.k}</p><div class="v">${t.v}${t.unit ? `<span class="unit"> ${t.unit}</span>` : ""}</div><div class="u">${t.u}</div></div>`).join("");
+  }
+
+  function renderChart(c) {
+    const data = c.periods.filter(p => p.lph != null);
+    const host = document.getElementById("chart");
+    if (!data.length) { host.innerHTML = `<p style="color:var(--muted);padding:16px;font-size:.84rem">${mode === "connecting" ? "Lade Daten …" : "Noch keine abgeschlossene Periode. Den ersten Volltank unten erfassen – ab dem zweiten entsteht ein L/h-Wert."}</p>`; return; }
+    const lake = cssVar("--lake"), mean = cssVar("--mean"), line = cssVar("--line"), muted = cssVar("--muted"), fg = cssVar("--fg");
+    const W = 540, H = 260, m = { t: 18, r: 14, b: 42, l: 38 };
+    const iw = W - m.l - m.r, ih = H - m.t - m.b;
+    // Säulen = L/h je Periode (ab 0, damit die Höhe ehrlich ist), Säulenbreite = gefahrene Stunden,
+    // Linie = laufender Durchschnitt. Beschriftung: Ø über allem, L/h in der Säulenmitte, Stunden am Säulenfuß.
+    const bg = cssVar("--bg");
+    const vals = data.map(d => d.lph).concat(data.map(d => d.cumAvg).filter(v => v != null));
+    const maxV = Math.max(...vals);
+    const step = maxV <= 8 ? 1 : maxV <= 18 ? 2 : 5;
+    const hi = Math.ceil((maxV * 1.18) / step) * step;   // Luft oben für die Ø-Beschriftung
+    const n = data.length, gap = 8, avail = iw - gap * n;
+    const sumH = data.reduce((s, d) => s + d.dh, 0);
+    const widths = data.map(d => avail * d.dh / sumH);
+    const lefts = []; widths.reduce((acc, w, i) => { lefts[i] = acc; return acc + w + gap; }, m.l + gap / 2);
+    const x = i => lefts[i] + widths[i] / 2;
+    const y = v => m.t + ih - (v / hi) * ih;
+    const base = m.t + ih;
+    const ticks = []; for (let v = 0; v <= hi; v += step) ticks.push(v);
+    const grid = ticks.map(v => `<line x1="${m.l}" y1="${y(v).toFixed(1)}" x2="${W - m.r}" y2="${y(v).toFixed(1)}" stroke="${line}" stroke-width="1"/><text x="${m.l - 7}" y="${(y(v) + 3.5).toFixed(1)}" text-anchor="end" font-size="10" fill="${muted}">${v}</text>`).join("");
+    const xlabels = data.map((d, i) => `<text x="${x(i).toFixed(1)}" y="${H - m.b + 18}" text-anchor="middle" font-size="10" fill="${muted}">P${i + 1}</text><text x="${x(i).toFixed(1)}" y="${H - m.b + 31}" text-anchor="middle" font-size="8.5" fill="${muted}">${fmtDate(d.date)}</text>`).join("");
+    const bars = data.map((d, i) => {
+      const top = y(d.lph), h = base - top, w = widths[i];
+      const wide = w >= 30, mid = top + h * 0.5;
+      return `<rect x="${lefts[i].toFixed(1)}" y="${top.toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" rx="4" fill="${lake}" opacity="0.85"><title>P${i + 1}: ${fmt(d.lph, 1)} L/h in ${fmt(d.dh, 1)} h</title></rect>` +
+        (wide && h > 34 ? `<text x="${x(i).toFixed(1)}" y="${(mid + 4).toFixed(1)}" text-anchor="middle" font-size="11" font-weight="600" fill="${bg}">${fmt(d.lph, 1)}</text>` : "") +
+        (wide && h > 70 ? `<text x="${x(i).toFixed(1)}" y="${(base - 8).toFixed(1)}" text-anchor="middle" font-size="9.5" fill="${bg}" opacity="0.85">${fmt(d.dh, 1)} h</text>` : "");
+    }).join("");
+    const avgPts = data.map((d, i) => `${x(i).toFixed(1)},${y(d.cumAvg).toFixed(1)}`).join(" ");
+    const avgDots = data.map((d, i) => `<circle cx="${x(i).toFixed(1)}" cy="${y(d.cumAvg).toFixed(1)}" r="${i === n - 1 ? 4.5 : 3}" fill="${mean}" stroke="${bg}" stroke-width="1.5"><title>Ø bis P${i + 1}: ${fmt(d.cumAvg, 1)} L/h</title></circle>`).join("");
+    // Ø-Wert über dem höheren von Säulenoberkante und Linienpunkt, damit nichts überlappt
+    const avgLabels = data.map((d, i) => (widths[i] >= 30 || i === n - 1)
+      ? `<text x="${x(i).toFixed(1)}" y="${(Math.min(y(d.lph), y(d.cumAvg)) - 9).toFixed(1)}" text-anchor="middle" font-size="10" font-weight="600" fill="${mean}">Ø ${fmt(d.cumAvg, 1)}</text>` : "").join("");
+    host.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Verbrauch je Periode als Säulen, Breite nach Stunden, Durchschnitt als Linie">${grid}${bars}${n > 1 ? `<polyline points="${avgPts}" fill="none" stroke="${mean}" stroke-width="2.5" stroke-linejoin="round"/>` : ""}${avgDots}${avgLabels}${xlabels}</svg>`;
+  }
+
+  function renderFullTable(c) {
+    const tb = document.querySelector("#fullTable tbody");
+    let rows = `<tr class="baseline"><td>Start</td><td>${fmt(settings.baselineHours, 1)}</td><td>–</td><td>–</td><td>–</td><td>–</td><td>–</td><td>–</td><td></td></tr>`;
+    rows += c.periods.map((p, i) => {
+      const carryNote = p.carried > 0 ? `<span class="orig">inkl. ${fmt(p.carried, 1)} L Teilbetankung</span>` : "";
+      const pc = priceCell(p.ref, p.ref.liters);
+      return `<tr><td>P${i + 1} · ${fmtDate(p.date)}${placeLine(p.ref)}</td><td>${fmt(p.hours, 1)}</td><td>${fmt(p.dh, 1)}</td><td>${fmt(p.liters, 1)}${carryNote}</td><td><b>${fmt(p.lph, 1)}</b></td><td>${fmt(p.cumAvg, 1)}</td><td>${pc.total}</td><td>${pc.perL}</td><td>${actionsCell(p.ref)}</td></tr>` +
+        p.partials.map((t, j) => partialRow(t, j, "sub")).join("");
+    }).join("");
+    tb.innerHTML = rows;
+  }
+
+  // Teiltank-Zeile: offen in der Teilbetankungs-Tabelle, nach dem Volltank eingerückt unter ihrer Periode
+  function actionsCell(e) {
+    return `${e.photo ? `<img class="receipt" src="${esc(e.photo)}" data-full="${esc(e.photo)}" alt="Beleg">` : ""} <button class="del" data-id="${esc(e.id)}" title="Löschen">×</button>`;
+  }
+  function partialRow(p, j, cls) {
+    const pc = priceCell(p, p.liters);
+    return `<tr${cls ? ` class="${cls}"` : ""}><td>T${j + 1} · ${fmtDate(p.date)}${placeLine(p)}</td><td>${p.hours != null ? fmt(p.hours, 1) : "–"}</td><td>–</td><td>${fmt(p.liters, 1)}</td><td>–</td><td>–</td><td>${pc.total}</td><td>${pc.perL}</td><td>${actionsCell(p)}</td></tr>`;
+  }
+
+  function renderPartials(c) {
+    const sec = document.getElementById("partialSection");
+    const tb = document.querySelector("#partialTable tbody");
+    if (!c.openPartials.length) { sec.hidden = true; return; }
+    sec.hidden = false;
+    const nextP = "P" + (c.periods.length + 1);
+    document.getElementById("partialLabel").textContent = `Teilbetankungen · T = Teilbetankung, zählt zur laufenden Periode ${nextP}`;
+    let rows = c.openPartials.map((p, j) => partialRow(p, j)).join("");
+    const sumL = c.openPartials.reduce((s, p) => s + (p.liters || 0), 0);
+    rows += `<tr class="open"><td><b>Summe offen</b></td><td></td><td></td><td><b>${fmt(sumL, 1)}</b></td><td colspan="5" class="hint">→ zählt zur nächsten Vollbetankung</td></tr>`;
+    tb.innerHTML = rows;
+  }
+
+  // ---- Übernahme alter, nur lokal gespeicherter Einträge in den gemeinsamen Speicher ----
+  function legacyPending() {
+    if (mode !== "db" || !dbReady) return [];
+    try { if (localStorage.getItem(MIGRATED_KEY) === "1") return []; } catch (e) {}
+    const leg = readLegacy();
+    if (!leg || !Array.isArray(leg.entries)) return [];
+    const have = new Set(state.entries.map(e => e.id));
+    return leg.entries.filter(e => e && e.id && !have.has(e.id));
+  }
+  function renderMigrate() {
+    const pending = legacyPending(), box = document.getElementById("migrate");
+    box.hidden = !pending.length;
+    if (pending.length) document.getElementById("migrateTxt").textContent =
+      `In diesem Browser ${pending.length === 1 ? "liegt 1 Eintrag" : "liegen " + pending.length + " Einträge"}, die noch nicht im gemeinsamen Speicher sind. Übernehmen, damit sie auf allen Geräten erscheinen?`;
+  }
+  function markMigrated() { try { localStorage.setItem(MIGRATED_KEY, "1"); } catch (e) {} renderMigrate(); }
+  document.getElementById("migrateBtn").onclick = async () => {
+    const btn = document.getElementById("migrateBtn"); btn.disabled = true;
+    const leg = readLegacy() || {};
+    try {
+      for (const e of legacyPending()) await putEntry({ ...e });
+      if (settings.baselineHours == null && leg.baseline && leg.baseline.hours != null) await saveSettings({ baselineHours: leg.baseline.hours }, true);
+      markMigrated(); showMsg("Lokale Einträge übernommen ✓");
+    } catch (e) { showMsg(errText(e)); }
+    btn.disabled = false;
+  };
+  document.getElementById("migrateSkip").onclick = markMigrated;
+
+  // ---- Tank check / Prognose ----
+  const RESERVE = 1 / 3;
+
+  function scenarioBlock(title, rate, rateNote, tank, usedL) {
+    if (rate == null) return "";
+    const restL = tank - usedL, restPct = Math.max(0, Math.min(1, restL / tank));
+    const usableL = restL - tank * RESERVE;
+    const hoursToReserve = usableL > 0 ? usableL / rate : 0;
+    const hoursToEmpty = restL > 0 ? restL / rate : 0;
+    let risk = "green", rlabel = "Komfortabel", rtext = "über der Reserve";
+    if (restL <= 0) { risk = "red"; rlabel = "Rechnerisch leer"; rtext = "sofort tanken"; }
+    else if (restPct <= RESERVE) { risk = "red"; rlabel = "In der Reserve"; rtext = "jetzt tanken"; }
+    else if (hoursToReserve <= 2) { risk = "amber"; rlabel = "Knapp"; rtext = "bald tanken"; }
+    const barColor = risk === "green" ? cssVar("--up") : risk === "amber" ? cssVar("--mean") : cssVar("--down");
+    return `<div class="scenario"><h4>${title}</h4><p class="rate">${rateNote} · ${fmt(rate, 1)} L/h</p>
+      <div class="big">${fmt(Math.max(0, restL), 1)}<span class="unit"> L Rest</span></div>
+      <div class="bar"><i style="width:${(restPct * 100).toFixed(0)}%;background:${barColor}"></i></div>
+      <div class="line2">≈ ${fmt(Math.max(0, hoursToReserve), 1)} h bis Reserve · ${fmt(Math.max(0, hoursToEmpty), 1)} h bis leer</div>
+      <div class="risk ${risk}"><span class="rdot"></span>${rlabel} — ${rtext}</div></div>`;
+  }
+
+  function renderCheck(c) {
+    const host = document.getElementById("checkResult");
+    const hv = parseFloat((document.getElementById("checkHours").value || "").replace(",", "."));
+    const tankSize = settings.tankSize > 0 ? settings.tankSize : DEFAULTS.tankSize;
+    if (!hv || c.lastFullHours == null) { host.innerHTML = `<p class="check-empty">Motorstunden eingeben für eine Rest- und Reichweiten-Prognose ab dem letzten Volltank (${fmt(c.lastFullHours, 1)} h).</p>`; return; }
+    const dh = hv - c.lastFullHours;
+    if (dh < 0) { host.innerHTML = `<p class="check-empty">Der Wert liegt unter dem letzten Volltank (${fmt(c.lastFullHours, 1)} h). Bitte prüfen.</p>`; return; }
+    if (c.cumAvg == null) { host.innerHTML = `<p class="check-empty">Für die Prognose braucht es mindestens eine abgeschlossene Volltank-Periode.</p>`; return; }
+    const addedSince = c.openCarryL;
+    const usedAvg = dh * c.cumAvg - addedSince;
+    const usedMax = dh * c.maxRate - addedSince;
+    const maxIdx = c.periods.findIndex(p => p.lph === c.maxRate);
+    host.innerHTML = `<div class="gauge-row">${scenarioBlock("Optimistisch (Durchschnitt aller Perioden)", c.cumAvg, "Ø P1–P" + c.periods.length, tankSize, Math.max(0, usedAvg))}${scenarioBlock("Konservativ (bisheriger Höchstwert)", c.maxRate, "aus P" + (maxIdx + 1), tankSize, Math.max(0, usedMax))}</div>
+      <p class="check-note">Seit letztem Volltank: ${fmt(dh, 1)} h gefahren${addedSince > 0 ? `, ${fmt(addedSince, 1)} L zwischendurch nachgetankt` : ""}. Reserve = ein Drittel (${fmt(tankSize * RESERVE, 1)} L). Reine Rechnung ab angenommenem Volltank — Tankanzeige gegenprüfen, rechtzeitig tanken.</p>`;
+  }
+
+  // Motorstunden-Feld: gemerkter Wert oder höchster bekannter Zählerstand aus den Betankungen, je nachdem was höher ist
+  function bestKnownHours() {
+    let best = null;
+    if (settings.checkHours > 0) best = { h: settings.checkHours, note: "Zuletzt eingetragen am " + fmtDate(settings.checkHoursAt) };
+    state.entries.forEach(e => {
+      if (e.hours != null && (!best || e.hours > best.h))
+        best = { h: e.hours, note: "Stand aus der Betankung vom " + fmtDate(e.date) + (e.place ? " (" + e.place + ")" : "") };
+    });
+    return best;
+  }
+  function prefillHours() {
+    const el = F("checkHours"), best = bestKnownHours();
+    if (!best || document.activeElement === el) return;
+    const cur = parseFloat((el.value || "").replace(",", "."));
+    if (!(cur >= best.h)) el.value = best.h;
+    F("hoursNote").textContent = (cur > best.h ? "Eben eingetragen" : best.note) + ". Bei Abweichung den aktuellen Zählerstand eintragen.";
+  }
+
+  function render() {
+    const c = compute();
+    prefillHours();
+    renderTiles(c); renderCheck(c); renderCosts(c); renderChart(c); renderFullTable(c); renderPartials(c); renderMigrate();
+    attachDelete(); attachReceipts();
+  }
+
+  function attachDelete() {
+    document.querySelectorAll(".del").forEach(b => b.onclick = async () => {
+      try { await removeEntry(b.dataset.id); } catch (e) { showMsg(errText(e)); }
+    });
+  }
+  function attachReceipts() {
+    document.querySelectorAll("img.receipt").forEach(im => im.onclick = () => {
+      const box = document.createElement("div"); box.className = "lightbox";
+      const big = document.createElement("img"); big.src = im.dataset.full; big.alt = "Beleg";
+      box.appendChild(big); box.onclick = () => box.remove();
+      document.body.appendChild(box);
+    });
+  }
+
+  // ---- Form ----
+  const form = document.getElementById("entryForm");
+  const F = id => document.getElementById(id);
+  F("date").value = new Date().toISOString().slice(0, 10);
+
+  // Einstellungsfelder aus dem Speicher füllen, ohne ein Feld zu überschreiben, in dem gerade getippt wird
+  function syncInputs() {
+    const set = (id, v) => { const el = F(id); if (document.activeElement !== el && v != null) el.value = v; };
+    set("tankSize", settings.tankSize);
+  }
+
+  // Kursfeld nur bei CHF zeigen, vorbelegt mit dem zuletzt verwendeten Kurs
+  function updateRateField() {
+    const chf = F("currency").value === "CHF";
+    F("rateField").hidden = !chf;
+    if (chf && !F("rate").value) F("rate").value = settings.eurChf > 0 ? settings.eurChf : DEFAULTS.eurChf;
+    const price = parseFloat(F("price").value.replace(",", ".")), rate = parseFloat(F("rate").value.replace(",", "."));
+    F("rateNote").textContent = chf && price > 0 && rate > 0
+      ? `${fmt(price, 2)} CHF ≈ ${fmt(price / rate, 2)} €. Bei Bedarf an den Tageskurs anpassen.`
+      : "Vorbelegt mit dem zuletzt verwendeten Kurs. Bei Bedarf an den Tageskurs anpassen.";
+  }
+  ["currency", "price", "rate"].forEach(id => F(id).addEventListener("input", updateRateField));
+
+  function livePreview() {
+    const hours = parseFloat(F("hours").value.replace(",", ".")), liters = parseFloat(F("liters").value.replace(",", ".")), full = F("isFull").checked;
+    const pv = document.getElementById("preview");
+    if (!full) { pv.innerHTML = liters ? `Teilbetankung: <b>${fmt(liters, 1)} L</b> → wird dem nächsten Volltank zugerechnet.` : "Teilbetankung — fließt nicht in L/h ein."; return; }
+    const c = compute();
+    const prev = c.periods.length ? c.periods[c.periods.length - 1].hours : settings.baselineHours;
+    if (hours && liters && prev != null) {
+      const dh = hours - prev, totalL = liters + c.openCarryL;
+      if (dh > 0) { const extra = c.openCarryL > 0 ? ` (inkl. ${fmt(c.openCarryL, 1)} L aus offenen Teilbetankungen)` : ""; pv.innerHTML = `Δ ${fmt(dh, 1)} h · ${fmt(totalL, 1)} L${extra} → <b>${fmt(totalL / dh, 1)} L/h</b>`; }
+      else pv.innerHTML = `Stunden müssen über ${fmt(prev, 1)} h liegen.`;
+    } else if (hours && liters && prev == null) pv.innerHTML = "Erster Volltank: dieser Stand wird zum Startpunkt der Messung.";
+    else pv.innerHTML = "Werte eingeben für Vorschau …";
+  }
+  ["hours", "liters", "isFull"].forEach(id => F(id).addEventListener("input", livePreview));
+  F("checkHours").addEventListener("input", () => {
+    const c = compute(); renderCheck(c); renderTiles(c);
+    const v = parseFloat((F("checkHours").value || "").replace(",", "."));
+    if (v > 0 && (c.lastFullHours == null || v >= c.lastFullHours) && v !== settings.checkHours) {
+      saveSettings({ checkHours: v, checkHoursAt: new Date().toISOString().slice(0, 10) });
+      F("hoursNote").textContent = "Wird gemerkt und auf allen Geräten angezeigt.";
+    }
+  });
+  F("checkHours").addEventListener("blur", () => render());
+  F("tankSize").addEventListener("input", () => { const v = parseFloat(F("tankSize").value); if (v > 0) { saveSettings({ tankSize: v }); renderCheck(compute()); } });
+
+  form.addEventListener("submit", async e => {
+    e.preventDefault();
+    if (mode === "connecting") { showMsg("Datenspeicher lädt noch – gleich nochmal versuchen."); return; }
+    const hours = parseFloat(F("hours").value.replace(",", ".")), liters = parseFloat(F("liters").value.replace(",", ".")), price = F("price").value ? parseFloat(F("price").value.replace(",", ".")) : null;
+    const cur = F("currency").value, rate = parseFloat(F("rate").value.replace(",", "."));
+    if (cur === "CHF" && !(rate > 0)) { showMsg("Bitte den Kurs vom Tanktag eintragen (1 EUR in CHF)."); return; }
+    const entry = { id: "e" + Date.now(), date: F("date").value, hours: isNaN(hours) ? null : hours, liters: isNaN(liters) ? 0 : liters, price: price == null || isNaN(price) ? null : price, cur, place: F("place").value.trim(), full: F("isFull").checked, photo: pendingPhoto };
+    if (cur === "CHF") entry.rate = rate;
+    const btn = F("submitBtn"); btn.disabled = true;
+    try {
+      await putEntry(entry);
+      if (cur === "CHF" && rate !== settings.eurChf) saveSettings({ eurChf: rate }, true);
+      form.reset(); clearPhoto(); updateRateField();
+      F("date").value = new Date().toISOString().slice(0, 10); F("isFull").checked = true;
+      showMsg("Eintrag gespeichert ✓");
+    } catch (err) { showMsg(errText(err)); }
+    btn.disabled = false;
+  });
+  F("resetBtn").onclick = () => { form.reset(); clearPhoto(); updateRateField(); F("date").value = new Date().toISOString().slice(0, 10); F("isFull").checked = true; document.getElementById("preview").innerHTML = "Werte eingeben für Vorschau …"; };
+
+  // ---- Photo ----
+  let pendingPhoto = null;
+  const photoInput = F("photoInput");
+  F("photoDrop").onclick = () => photoInput.click();
+  photoInput.onchange = () => {
+    const file = photoInput.files[0]; if (!file) return;
+    const r = new FileReader();
+    r.onload = () => resizeImage(r.result, 800, 0.7, (d) => { pendingPhoto = d; F("photoThumb").src = d; F("photoThumb").hidden = false; F("photoIco").textContent = "✓"; F("photoTxt").textContent = "Foto angehängt — tippen zum Ändern"; });
+    r.readAsDataURL(file);
+  };
+  function resizeImage(src, maxDim, q, cb) {
+    const img = new Image();
+    img.onload = () => { let { width: w, height: h } = img; if (w > h && w > maxDim) { h = h * maxDim / w; w = maxDim; } else if (h > maxDim) { w = w * maxDim / h; h = maxDim; } const cv = document.createElement("canvas"); cv.width = w; cv.height = h; cv.getContext("2d").drawImage(img, 0, 0, w, h); try { cb(cv.toDataURL("image/jpeg", q)); } catch (e) { cb(src); } };
+    img.onerror = () => cb(src); img.src = src;
+  }
+  function clearPhoto() { pendingPhoto = null; F("photoThumb").hidden = true; F("photoThumb").src = ""; F("photoIco").textContent = "📷"; F("photoTxt").textContent = "Foto aufnehmen oder aus Galerie wählen"; photoInput.value = ""; }
+
+  render();
+  startDb();
+})();
+</script>
+</body></html>
