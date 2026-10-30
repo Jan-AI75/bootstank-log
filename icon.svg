@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <path id="obersee" d="M104 128 124 131 180 172 198 176 202 183 207 204 257 238 273 244 304 245 332 260 352 263 361 272 366 291 379 308 388 312 408 315 431 327 452 343 476 349 483 355 489 369 471 367 461 369 458 372 455 383 451 386 438 385 436 384 435 379 430 376 426 377 417 385 404 385 386 376 366 391 354 394 305 350 302 349 293 325 286 318 198 266 187 250 195 248 198 240 185 220 175 188 169 178 159 170 134 159 124 152 108 135 105 129Z"/>
+    <path id="untersee" d="M57 198 55 197 56 191 60 187 72 194 77 191 79 184 123 208 141 224 153 247 94 240 84 244 74 255 71 256 50 261 28 261 40 260 53 249 77 237 86 226 87 222 83 216 58 199Z"/>
+    <clipPath id="lakeClip"><use href="#obersee"/><use href="#untersee"/></clipPath>
+  </defs>
+  <rect width="512" height="512" fill="#0b1a20"/>
+  <use href="#obersee" fill="#11252d"/><use href="#untersee" fill="#11252d"/>
+  <rect x="0" y="278" width="512" height="234" fill="#e0a957" clip-path="url(#lakeClip)"/>
+  <use href="#obersee" fill="none" stroke="#ced9dc" stroke-width="11" stroke-linejoin="round"/>
+  <use href="#untersee" fill="none" stroke="#ced9dc" stroke-width="11" stroke-linejoin="round"/>
+  <line x1="28" y1="278" x2="484" y2="278" stroke="#818e93" stroke-width="4" stroke-dasharray="14 10"/>
+  <!-- Zapfpistole: Griff unten, Schlauchende schräg nach unten, Auslauf nach oben und an der Spitze nach unten gebogen -->
+  <g transform="translate(256 70) scale(1.7) rotate(45)" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="#ced9dc">
+    <path d="M50 -30 L16 -27 Q4 -26 0 -14 L-3 0" stroke-width="7"/>
+    <rect x="46" y="-43" width="90" height="26" rx="13" fill="#ced9dc" stroke="none"/>
+    <path d="M134 -30 Q156 -30 162 -10" stroke-width="7"/>
+    <path d="M62 -18 Q62 2 80 2 L112 2 Q124 2 124 -18" stroke-width="4.6"/>
+    <path d="M78 -16 L96 -6" stroke-width="4"/>
+  </g>  <path d="M250 86 C250 86 231 109 231 122 A19 19 0 0 0 269 122 C269 109 250 86 250 86Z" fill="#e0a957"/>
+</svg>

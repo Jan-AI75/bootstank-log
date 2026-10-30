@@ -1,0 +1,17 @@
+{
+  "name": "Bootstank-Log",
+  "short_name": "Bootstank",
+  "description": "Benzinverbrauch des Boots in Liter pro Motorstunde",
+  "lang": "de",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
+  "display": "browser",
+  "background_color": "#0b1a20",
+  "theme_color": "#0b1a20",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

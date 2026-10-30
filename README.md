@@ -23,4 +23,4 @@ Die frühere Fassung als Artifact auf claude.ai kann GitHub nicht erreichen und 
 
 ## Aufbau
 
-Eine einzelne Datei, `index.html`, ohne Build-Schritt. Externe Abhängigkeiten: Google Fonts und [fecha](https://github.com/taylorhakes/fecha) für Datumsformate.
+Eine einzelne Datei, `index.html`, ohne Build-Schritt. Dazu kommen das Logo (`icon.svg` sowie `icon-192.png`, `icon-512.png` und `apple-touch-icon.png` für den Startbildschirm) und `manifest.webmanifest`. Externe Abhängigkeiten: Google Fonts und [fecha](https://github.com/taylorhakes/fecha) für Datumsformate.
