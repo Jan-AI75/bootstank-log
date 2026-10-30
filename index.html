@@ -200,14 +200,16 @@
   </div>
   <div>
     <p class="intro">Verbrauch nach der Voll-zu-Voll-Methode auf Basis der Motorbetriebsstunden. Teilbetankungen werden separat geführt und erst dem nächsten Volltank-Intervall zugerechnet.</p>
-    <div class="sync" id="sync"><span class="sdot"></span><span id="syncTxt">Verbinde mit Datenspeicher …</span></div>
+    <div class="sync" id="sync"><span class="sdot"></span><span id="syncTxt">Lade Tankdaten …</span></div>
   </div>
 
-  <div class="migrate" id="migrate" hidden>
-    <p id="migrateTxt"></p>
+  <!-- Verbindung zur gemeinsamen Datei: einmal pro Gerät den GitHub-Schlüssel eintragen -->
+  <div class="migrate" id="keyBox" hidden>
+    <p>Die Tankdaten liegen in der Datei tankdaten.json im privaten Repository boot-daten, gemeinsam mit dem Boot-Cockpit. Einmal pro Gerät den GitHub-Schlüssel eintragen, er bleibt nur auf diesem Gerät.</p>
+    <input type="password" id="keyInp" autocomplete="off" placeholder="github_pat_…" aria-label="GitHub-Schlüssel">
     <div class="actions">
-      <button type="button" class="primary" id="migrateBtn">Übernehmen</button>
-      <button type="button" class="ghost" id="migrateSkip">Ignorieren</button>
+      <button type="button" class="primary" id="keyBtn">Verbinden</button>
+      <button type="button" class="ghost" id="keyCancel" hidden>Abbrechen</button>
     </div>
   </div>
 
@@ -312,10 +314,15 @@
       <input type="number" id="tankSize" step="1" inputmode="decimal" value="270">
     </div>
     <p class="fieldnote">Wird gespeichert und gilt auf allen Geräten. Nur bei einem anderen Boot oder Tank ändern.</p>
+    <div class="actions">
+      <button type="button" class="ghost" id="syncBtn">Jetzt abgleichen</button>
+      <button type="button" class="ghost" id="keyNew">Schlüssel ersetzen</button>
+      <button type="button" class="ghost" id="keyForget">Schlüssel entfernen</button>
+    </div>
   </details>
 
   <footer>
-    <span id="footTxt">Daten werden über claude.ai gespeichert.</span>
+    <span id="footTxt">Tankdaten in tankdaten.json (Repository boot-daten), gemeinsam mit dem Boot-Cockpit.</span>
   </footer>
 </div>
 
@@ -362,86 +369,150 @@
   document.addEventListener("click", e => { if (!palMenu.contains(e.target) && e.target !== palBtn && !palBtn.contains(e.target)) { palMenu.hidden = true; palBtn.setAttribute("aria-expanded", "false"); } });
   applyPalette();
 
-  // ---- Speicher: gemeinsamer Datenspeicher (db), Rückfall auf diesen Browser ----
-  // db-Layout: entries/<id> = eine Tankrechnung, settings/main = Startstand, Tankvolumen, Kurs, Anzeigewährung
-  const LEGACY_KEY = "tanklog_v1";            // alter, rein lokaler Speicher
-  const LOCAL_SETTINGS = "tanklog_settings";
-  const MIGRATED_KEY = "tanklog_migrated";
-  const DEFAULTS = { baselineHours: null, tankSize: 270, eurChf: 0.94, dispCur: "CHF" };
+  // ---- Speicher: gemeinsame Datei tankdaten.json im privaten Repository boot-daten, geteilt mit dem Boot-Cockpit ----
+  // Jede Änderung landet zuerst in diesem Browser und geht dann zu GitHub; ohne Netz wird sie beim nächsten Abgleich nachgeholt.
+  // Zusammengeführt wird nach Eintrag (id); gelöschte Einträge stehen in "deleted", damit sie nicht zurückkommen.
+  // Belegfotos liegen als eigene Dateien unter belege/, damit tankdaten.json klein bleibt.
+  const REPO_API = "https://api.github.com/repos/Jan-AI75/boot-daten/contents/";
+  const KEY_STORE = "tanklog_ghkey", CACHE_STORE = "tanklog_cache";
+  const DEFAULTS = { baselineHours: null, tankSize: 270, eurChf: 0.94, checkHours: null, checkHoursAt: null };
+  const SET_KEYS = Object.keys(DEFAULTS);
 
-  let mode = "connecting";                    // "connecting" | "db" | "local"
-  let db = null, dbReady = false;
+  let mode = "connecting";                    // "connecting" | "ready"
   let state = { entries: [] };
   let settings = { ...DEFAULTS };
+  let deleted = [], dirty = false, setDirty = {}, syncing = false, lastSync = 0;
+  let ghKey = ""; try { ghKey = localStorage.getItem(KEY_STORE) || ""; } catch (e) {}
 
-  function readLegacy() { try { const r = localStorage.getItem(LEGACY_KEY); return r ? JSON.parse(r) : null; } catch (e) { return null; } }
-  function saveLocal() { try { localStorage.setItem(LEGACY_KEY, JSON.stringify({ baseline: { hours: settings.baselineHours }, entries: state.entries })); localStorage.setItem(LOCAL_SETTINGS, JSON.stringify(settings)); } catch (e) {} }
+  const pickSettings = s => { const o = {}; SET_KEYS.forEach(k => { o[k] = s && s[k] !== undefined ? s[k] : DEFAULTS[k]; }); return o; };
+  const docOf = () => ({ schema: 1, settings: pickSettings(settings), entries: state.entries, deleted });
+  const normDoc = d => ({ schema: 1, settings: pickSettings(d && d.settings), entries: (d && Array.isArray(d.entries) ? d.entries : []).filter(e => e && e.id), deleted: (d && Array.isArray(d.deleted) ? d.deleted : []).slice() });
+  // Eine Zeile je Eintrag, damit Änderungen auf GitHub gut lesbar bleiben (gleiches Format wie im Cockpit)
+  const docText = d => `{\n  "schema": 1,\n  "settings": ${JSON.stringify(d.settings)},\n  "entries": [\n${d.entries.map(e => "    " + JSON.stringify(e)).join(",\n")}\n  ],\n  "deleted": ${JSON.stringify(d.deleted)}\n}\n`;
+  function b64e(s) { const u = new TextEncoder().encode(s); let b = ""; for (let i = 0; i < u.length; i += 8192) b += String.fromCharCode.apply(null, u.subarray(i, i + 8192)); return btoa(b); }
+  const b64d = s => new TextDecoder().decode(Uint8Array.from(atob(s.replace(/\s/g, "")), c => c.charCodeAt(0)));
+
+  function saveCache() { try { localStorage.setItem(CACHE_STORE, JSON.stringify({ doc: docOf(), dirty, setDirty, lastSync })); } catch (e) {} }
+  function loadCache() {
+    let c = null; try { c = JSON.parse(localStorage.getItem(CACHE_STORE) || "null"); } catch (e) {}
+    if (!c) return;
+    const d = normDoc(c.doc);
+    state.entries = d.entries; settings = d.settings; deleted = d.deleted;
+    dirty = !!c.dirty; setDirty = c.setDirty || {}; lastSync = c.lastSync || 0;
+  }
+
+  // Zusammenführen: Einträge beider Seiten, bei gleicher id gilt GitHub; hier geänderte Einstellungen gelten, Motorstunden nach dem jüngeren Zeitpunkt
+  function merge(remote) {
+    const del = [...new Set(remote.deleted.concat(deleted))].sort();
+    const ids = new Set(remote.entries.map(e => e.id));
+    const entries = remote.entries.concat(state.entries.filter(e => !ids.has(e.id))).filter(e => !del.includes(e.id));
+    const s = { ...remote.settings };
+    SET_KEYS.forEach(k => { if (setDirty[k] && k !== "checkHours" && k !== "checkHoursAt") s[k] = settings[k]; });
+    if ((settings.checkHoursAt || "") > (remote.settings.checkHoursAt || "")) { s.checkHours = settings.checkHours; s.checkHoursAt = settings.checkHoursAt; }
+    return { schema: 1, settings: s, entries, deleted: del };
+  }
+  async function gh(path, method, body, raw) {
+    const c = new AbortController(), to = setTimeout(() => c.abort(), 20000);
+    try {
+      return await fetch(REPO_API + path, { method: method || "GET", signal: c.signal, cache: "no-store",
+        headers: { Authorization: "Bearer " + ghKey, Accept: raw ? "application/vnd.github.raw" : "application/vnd.github+json" },
+        body: body ? JSON.stringify(body) : undefined });
+    } finally { clearTimeout(to); }
+  }
+  function ghErr(code) {
+    return code === 401 ? "Schlüssel ungültig oder abgelaufen" : code === 403 || code === 404 ? "Kein Zugriff auf boot-daten – Schlüssel prüfen"
+      : navigator.onLine === false ? "Offline" : !/\.github\.io$/.test(location.hostname) && location.hostname !== "localhost" ? "Hier ist GitHub gesperrt – jan-ai75.github.io/bootstank-log öffnen" : "GitHub nicht erreichbar";
+  }
+  function renderSync() {
+    if (!ghKey) { setSync("warn", "Nicht verbunden – GitHub-Schlüssel eintragen"); return; }
+    if (syncing) { setSync("warn", "Gleiche mit GitHub ab …"); return; }
+    if (syncState.err) { setSync("err", syncState.err + (dirty ? " · Änderungen werden nachgeholt" : "")); return; }
+    setSync(dirty ? "warn" : "ok", lastSync ? `Abgeglichen um ${new Date(lastSync).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })} Uhr${dirty ? " · Änderung wartet" : ""}` : "Noch nicht abgeglichen");
+  }
+  const syncState = { err: "" };
+  async function sync() {
+    if (!ghKey || syncing) return;
+    syncing = true; renderSync();
+    try {
+      for (let i = 0; i < 3; i++) {
+        const r = await gh("tankdaten.json");
+        if (!r.ok) throw { code: r.status };
+        const j = await r.json(), remote = normDoc(JSON.parse(b64d(j.content)));
+        const m = merge(remote);
+        state.entries = m.entries; settings = m.settings; deleted = m.deleted;
+        if (docText(m) === docText(remote)) { dirty = false; setDirty = {}; break; }
+        const p = await gh("tankdaten.json", "PUT", { message: "Bootstank-Log: Tankdaten aktualisiert", content: b64e(docText(m)), sha: j.sha });
+        if (p.status === 409 || p.status === 422) continue;   // inzwischen anderswo geändert: neu lesen und erneut zusammenführen
+        if (!p.ok) throw { code: p.status };
+        dirty = false; setDirty = {}; break;
+      }
+      lastSync = Date.now(); syncState.err = "";
+    } catch (e) { syncState.err = ghErr(e && e.code); }
+    syncing = false; mode = "ready";
+    saveCache(); syncInputs(); render(); renderSync(); renderKeyBox();
+  }
+  function changed() { dirty = true; mode = "ready"; saveCache(); render(); renderSync(); sync(); }
+
+  // Belegfotos: eigene Datei je Eintrag, angezeigt über die API (privates Repository)
+  async function uploadPhoto(id, dataUrl) {
+    const r = await gh("belege/" + id + ".jpg", "PUT", { message: "Bootstank-Log: Beleg " + id, content: dataUrl.split(",")[1] });
+    if (!r.ok) throw { code: r.status };
+    return "belege/" + id + ".jpg";
+  }
+  const photoUrls = {};
+  async function photoSrc(path) {
+    if (!path || path.startsWith("data:")) return path;
+    if (!photoUrls[path]) photoUrls[path] = gh(path, "GET", null, true).then(r => { if (!r.ok) throw r.status; return r.blob(); }).then(b => URL.createObjectURL(b)).catch(() => { delete photoUrls[path]; return ""; });
+    return photoUrls[path];
+  }
 
   function setSync(cls, txt) {
     const el = document.getElementById("sync");
     el.className = "sync " + cls;
     document.getElementById("syncTxt").textContent = txt;
   }
-  function errText(e) {
-    const code = e && e.code;
-    if (code === "invalid_argument") return "Speichern abgelehnt. Nur der Besitzer und Bearbeiter dürfen Einträge ändern.";
-    if (code === "quota_exceeded") return "Speicher voll. Ältere Belegfotos löschen und erneut versuchen.";
-    if (code === "revoked" || code === "not_granted") return "Kein Zugriff mehr auf den Datenspeicher. Seite neu laden.";
-    return "Speichern fehlgeschlagen. Bitte erneut versuchen.";
-  }
+  function errText(e) { return "Speichern fehlgeschlagen. Bitte erneut versuchen."; }
   function showMsg(txt) { document.getElementById("preview").textContent = txt; }
 
-  function startLocal() {
-    mode = "local";
-    const leg = readLegacy();
-    let ls = null; try { ls = JSON.parse(localStorage.getItem(LOCAL_SETTINGS) || "null"); } catch (e) {}
-    let tank = null; try { tank = parseFloat(localStorage.getItem("tanklog_tank")); } catch (e) {}
-    settings = { ...DEFAULTS, ...(ls || {}) };
-    if (settings.baselineHours == null && leg && leg.baseline) settings.baselineHours = leg.baseline.hours;
-    if (!ls && tank) settings.tankSize = tank;
-    state.entries = leg && leg.entries ? leg.entries : [];
-    document.getElementById("footTxt").textContent = "Nur in diesem Browser gespeichert. Bei claude.ai angemeldet öffnen, um auf allen Geräten dieselben Daten zu sehen.";
-    setSync("warn", "Nur lokal – keine Synchronisierung");
-    syncInputs(); render();
-  }
-
-  async function startDb() {
-    let ns = null;
-    try { ns = window.claude && window.claude.use ? await window.claude.use("db") : null; } catch (e) { ns = null; }
-    if (!ns) { startLocal(); return; }
-    db = ns; mode = "db";
-    document.getElementById("footTxt").textContent = "Daten werden über claude.ai gespeichert und sind auf allen deinen Geräten gleich.";
-    db.collection("entries").onSnapshot(snap => {
-      state.entries = snap.docs.map(d => ({ ...d.data(), id: d.id }));
-      if (!snap.metadata.fromCache) dbReady = true;
-      setSync(snap.metadata.hasPendingWrites ? "warn" : "ok", snap.metadata.hasPendingWrites ? "Speichere …" : "Synchronisiert");
-      render();
-    }, e => setSync("err", "Synchronisierung unterbrochen – Seite neu laden."));
-    db.doc("settings/main").onSnapshot(snap => {
-      settings = { ...DEFAULTS, ...(snap.exists ? snap.data() : {}) };
-      syncInputs(); render();
-    }, e => setSync("err", "Synchronisierung unterbrochen – Seite neu laden."));
-  }
-
   async function putEntry(e) {
-    if (mode === "db") { await db.collection("entries").doc(e.id).set(e); return; }
-    state.entries = state.entries.filter(x => x.id !== e.id).concat([e]); saveLocal(); render();
+    if (e.photo && e.photo.startsWith("data:")) {
+      if (!ghKey) e.photo = null;
+      else try { e.photo = await uploadPhoto(e.id, e.photo); } catch (err) { e.photo = null; showMsg("Beleg-Foto nicht übertragen (" + ghErr(err && err.code) + "). Eintrag ohne Foto gespeichert."); }
+    }
+    state.entries = state.entries.filter(x => x.id !== e.id).concat([e]); changed();
   }
   async function removeEntry(id) {
-    if (mode === "db") { await db.doc("entries/" + id).delete(); return; }
-    state.entries = state.entries.filter(e => e.id !== id); saveLocal(); render();
+    state.entries = state.entries.filter(e => e.id !== id);
+    if (!deleted.includes(id)) deleted.push(id);
+    changed();
   }
-  let settingsTimer = null, settingsChain = Promise.resolve();
+  let settingsTimer = null;
   function saveSettings(patch, immediate) {
     settings = { ...settings, ...patch };
-    if (mode === "local") { saveLocal(); return settingsChain; }
-    if (mode !== "db") return settingsChain;
+    Object.keys(patch).forEach(k => { setDirty[k] = true; });
+    dirty = true; saveCache(); renderSync();
     clearTimeout(settingsTimer);
-    const write = () => { const body = { ...settings }; settingsChain = settingsChain.then(() => db.doc("settings/main").set(body)).catch(e => showMsg(errText(e))); return settingsChain; };
-    if (immediate) return write();
-    settingsTimer = setTimeout(write, 700);
-    return settingsChain;
+    if (immediate) sync(); else settingsTimer = setTimeout(sync, 1500);
+    return Promise.resolve();
   }
+
+  // Schlüssel: Kasten oben, solange keiner eingetragen ist; in den Einstellungen ersetzen oder entfernen
+  let keyEdit = false;
+  function renderKeyBox() {
+    const show = !ghKey || keyEdit;
+    document.getElementById("keyBox").hidden = !show;
+    document.getElementById("keyCancel").hidden = !ghKey;
+  }
+  document.getElementById("keyBtn").onclick = () => {
+    const v = document.getElementById("keyInp").value.trim(); if (!v) return;
+    ghKey = v; try { localStorage.setItem(KEY_STORE, v); } catch (e) {}
+    document.getElementById("keyInp").value = ""; keyEdit = false; syncState.err = ""; renderKeyBox(); sync();
+  };
+  document.getElementById("keyInp").addEventListener("keydown", e => { if (e.key === "Enter") document.getElementById("keyBtn").click(); });
+  document.getElementById("keyCancel").onclick = () => { keyEdit = false; renderKeyBox(); };
+  document.getElementById("keyNew").onclick = () => { keyEdit = true; renderKeyBox(); document.getElementById("keyInp").focus(); window.scrollTo(0, 0); };
+  document.getElementById("keyForget").onclick = () => { ghKey = ""; try { localStorage.removeItem(KEY_STORE); } catch (e) {} renderKeyBox(); renderSync(); };
+  document.getElementById("syncBtn").onclick = () => sync();
 
   const fmt = (n, d = 2) => n == null || isNaN(n) ? "–" : n.toLocaleString("de-DE", { minimumFractionDigits: d, maximumFractionDigits: d });
   const fmtDate = (s) => { try { return fecha.format(fecha.parse(s, "YYYY-MM-DD"), "DD.MM.YY"); } catch (e) { return s || "–"; } };
@@ -585,7 +656,7 @@
 
   // Teiltank-Zeile: offen in der Teilbetankungs-Tabelle, nach dem Volltank eingerückt unter ihrer Periode
   function actionsCell(e) {
-    return `${e.photo ? `<img class="receipt" src="${esc(e.photo)}" data-full="${esc(e.photo)}" alt="Beleg">` : ""} <button class="del" data-id="${esc(e.id)}" title="Löschen">×</button>`;
+    return `${e.photo ? `<img class="receipt" data-path="${esc(e.photo)}" alt="Beleg">` : ""} <button class="del" data-id="${esc(e.id)}" title="Löschen">×</button>`;
   }
   function partialRow(p, j, cls) {
     const pc = priceCell(p, p.liters);
@@ -604,34 +675,6 @@
     rows += `<tr class="open"><td><b>Summe offen</b></td><td></td><td></td><td><b>${fmt(sumL, 1)}</b></td><td colspan="5" class="hint">→ zählt zur nächsten Vollbetankung</td></tr>`;
     tb.innerHTML = rows;
   }
-
-  // ---- Übernahme alter, nur lokal gespeicherter Einträge in den gemeinsamen Speicher ----
-  function legacyPending() {
-    if (mode !== "db" || !dbReady) return [];
-    try { if (localStorage.getItem(MIGRATED_KEY) === "1") return []; } catch (e) {}
-    const leg = readLegacy();
-    if (!leg || !Array.isArray(leg.entries)) return [];
-    const have = new Set(state.entries.map(e => e.id));
-    return leg.entries.filter(e => e && e.id && !have.has(e.id));
-  }
-  function renderMigrate() {
-    const pending = legacyPending(), box = document.getElementById("migrate");
-    box.hidden = !pending.length;
-    if (pending.length) document.getElementById("migrateTxt").textContent =
-      `In diesem Browser ${pending.length === 1 ? "liegt 1 Eintrag" : "liegen " + pending.length + " Einträge"}, die noch nicht im gemeinsamen Speicher sind. Übernehmen, damit sie auf allen Geräten erscheinen?`;
-  }
-  function markMigrated() { try { localStorage.setItem(MIGRATED_KEY, "1"); } catch (e) {} renderMigrate(); }
-  document.getElementById("migrateBtn").onclick = async () => {
-    const btn = document.getElementById("migrateBtn"); btn.disabled = true;
-    const leg = readLegacy() || {};
-    try {
-      for (const e of legacyPending()) await putEntry({ ...e });
-      if (settings.baselineHours == null && leg.baseline && leg.baseline.hours != null) await saveSettings({ baselineHours: leg.baseline.hours }, true);
-      markMigrated(); showMsg("Lokale Einträge übernommen ✓");
-    } catch (e) { showMsg(errText(e)); }
-    btn.disabled = false;
-  };
-  document.getElementById("migrateSkip").onclick = markMigrated;
 
   // ---- Tank check / Prognose ----
   const RESERVE = 1 / 3;
@@ -673,7 +716,7 @@
   // Motorstunden-Feld: gemerkter Wert oder höchster bekannter Zählerstand aus den Betankungen, je nachdem was höher ist
   function bestKnownHours() {
     let best = null;
-    if (settings.checkHours > 0) best = { h: settings.checkHours, note: "Zuletzt eingetragen am " + fmtDate(settings.checkHoursAt) };
+    if (settings.checkHours > 0) best = { h: settings.checkHours, note: "Zuletzt eingetragen am " + fmtDate(String(settings.checkHoursAt || "").slice(0, 10)) };
     state.entries.forEach(e => {
       if (e.hours != null && (!best || e.hours > best.h))
         best = { h: e.hours, note: "Stand aus der Betankung vom " + fmtDate(e.date) + (e.place ? " (" + e.place + ")" : "") };
@@ -691,7 +734,7 @@
   function render() {
     const c = compute();
     prefillHours();
-    renderTiles(c); renderCheck(c); renderCosts(c); renderChart(c); renderFullTable(c); renderPartials(c); renderMigrate();
+    renderTiles(c); renderCheck(c); renderCosts(c); renderChart(c); renderFullTable(c); renderPartials(c);
     attachDelete(); attachReceipts();
   }
 
@@ -701,11 +744,15 @@
     });
   }
   function attachReceipts() {
-    document.querySelectorAll("img.receipt").forEach(im => im.onclick = () => {
+    document.querySelectorAll("img.receipt").forEach(im => {
+      photoSrc(im.dataset.path).then(u => { if (u) im.src = u; });
+      im.onclick = () => {
+      if (!im.src) return;
       const box = document.createElement("div"); box.className = "lightbox";
-      const big = document.createElement("img"); big.src = im.dataset.full; big.alt = "Beleg";
+      const big = document.createElement("img"); big.src = im.src; big.alt = "Beleg";
       box.appendChild(big); box.onclick = () => box.remove();
       document.body.appendChild(box);
+      };
     });
   }
 
@@ -750,7 +797,7 @@
     const c = compute(); renderCheck(c); renderTiles(c);
     const v = parseFloat((F("checkHours").value || "").replace(",", "."));
     if (v > 0 && (c.lastFullHours == null || v >= c.lastFullHours) && v !== settings.checkHours) {
-      saveSettings({ checkHours: v, checkHoursAt: new Date().toISOString().slice(0, 10) });
+      saveSettings({ checkHours: v, checkHoursAt: new Date().toISOString() });
       F("hoursNote").textContent = "Wird gemerkt und auf allen Geräten angezeigt.";
     }
   });
@@ -759,7 +806,7 @@
 
   form.addEventListener("submit", async e => {
     e.preventDefault();
-    if (mode === "connecting") { showMsg("Datenspeicher lädt noch – gleich nochmal versuchen."); return; }
+    if (mode === "connecting") { showMsg("Tankdaten laden noch – gleich nochmal versuchen."); return; }
     const hours = parseFloat(F("hours").value.replace(",", ".")), liters = parseFloat(F("liters").value.replace(",", ".")), price = F("price").value ? parseFloat(F("price").value.replace(",", ".")) : null;
     const cur = F("currency").value, rate = parseFloat(F("rate").value.replace(",", "."));
     if (cur === "CHF" && !(rate > 0)) { showMsg("Bitte den Kurs vom Tanktag eintragen (1 EUR in CHF)."); return; }
@@ -794,8 +841,14 @@
   }
   function clearPhoto() { pendingPhoto = null; F("photoThumb").hidden = true; F("photoThumb").src = ""; F("photoIco").textContent = "📷"; F("photoTxt").textContent = "Foto aufnehmen oder aus Galerie wählen"; photoInput.value = ""; }
 
-  render();
-  startDb();
+  // Start: zuerst die Kopie aus diesem Browser zeigen, dann mit GitHub abgleichen
+  loadCache();
+  if (lastSync || state.entries.length) mode = "ready";
+  syncInputs(); render(); renderSync(); renderKeyBox();
+  if (ghKey) sync(); else mode = "ready";
+  setInterval(sync, 5 * 60000);
+  window.addEventListener("online", sync);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) sync(); });
 })();
 </script>
 </body></html>
