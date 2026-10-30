@@ -12,12 +12,14 @@ Benzinverbrauch eines Motorboots auf dem Bodensee, gemessen in Liter pro Motorst
 
 ## Wo die App läuft
 
-Die App läuft als Artifact auf claude.ai:
-https://claude.ai/artifact/RCF8B7Gnyz9WfL1Qws7x3m
+Die App läuft über GitHub Pages:
+https://jan-ai75.github.io/bootstank-log/
 
-Die Tankdaten liegen im Datenspeicher dieses Artifacts und sind auf allen angemeldeten Geräten gleich. Dieses Repository enthält nur den Code, keine Tankdaten.
+Die Tankdaten liegen in `tankdaten.json` im privaten Repository `boot-daten`, Belegfotos dort unter `belege/`. Das [Boot-Cockpit](https://jan-ai75.github.io/boot-cockpit/) liest und schreibt dieselbe Datei, Betankungen und Motorstunden lassen sich also in beiden Apps erfassen. Dieses Repository enthält nur den Code, keine Tankdaten.
 
-Wird `index.html` außerhalb von claude.ai geöffnet (lokal oder über GitHub Pages), arbeitet die App im Modus „Nur lokal“: Die Daten liegen dann nur im jeweiligen Browser.
+Für den Zugriff wird einmal pro Gerät ein GitHub-Schlüssel (Fine-grained Token, nur `boot-daten`, Contents: Read and write) eingetragen. Er bleibt im Browser des Geräts. Ohne Netz speichert die App Änderungen zunächst lokal und überträgt sie beim nächsten Abgleich.
+
+Die frühere Fassung als Artifact auf claude.ai kann GitHub nicht erreichen und wird nicht mehr verwendet.
 
 ## Aufbau
 
